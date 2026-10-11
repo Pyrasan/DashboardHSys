@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistem Keamanan</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .login-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+    .login-card {
+      background: #0f3460;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-card h2 {
+      text-align: center;
+      color: #e94560;
+      margin-bottom: 30px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .form-group input:focus {
+      outline: 2px solid #e94560;
+    }
+    .login-btn {
+      width: 100%;
+      padding: 14px;
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .login-btn:hover {
+      background: #d63d56;
+    }
+    .error-msg {
+      background: #e74c3c;
+      color: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: center;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-container">
+  <div class="login-card">
+    <h2>Admin Login</h2>
+    
+    <div id="error" class="error-msg"></div>
+    
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" name="username" required autocomplete="username">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required autocomplete="current-password">
+      </div>
+      
+      <button type="submit" class="login-btn">Masuk</button>
+    </form>
+    
+    <div style="margin-top: 20px; text-align: center;">
+      <a href="deteksi.html" style="color: #888; text-decoration: none;">Masuk sebagai Tamu (User)</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const form = document.getElementById("loginForm");
+const errorDiv = document.getElementById("error");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  errorDiv.style.display = "none";
+  
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+  
+  console.log("Attempting login for:", username);
+  
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    
+    const text = await res.text();
+    console.log("Raw response:", text);
+    
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Failed to parse JSON:", e);
+      errorDiv.textContent = "Server error";
+      errorDiv.style.display = "block";
+      return;
+    }
+    
+    console.log("Login response parsed:", data);
+    console.log("data.sessionId:", data.sessionId, "type:", typeof data.sessionId);
+    console.log("Response status:", res.status);
+    
+    if (data.ok) {
+      console.log("Login successful, storing session...");
+      console.log("sessionId value:", data.sessionId);
+      
+      if (data.sessionId) {
+        sessionStorage.setItem("sessionId", data.sessionId);
+      } else {
+        console.error("sessionId is undefined!");
+      }
+      sessionStorage.setItem("user", JSON.stringify(data.user));
+      
+      console.log("sessionStorage.getItem('sessionId'):", sessionStorage.getItem("sessionId"));
+      console.log("Redirecting to index.html...");
+      window.location.href = "index.html";
+    } else {
+      console.log("Login failed:", data.error);
+      errorDiv.textContent = data.error || "Login gagal";
+      errorDiv.style.display = "block";
+    }
+  } catch (err) {
+    console.error("Login error:", err);
+    errorDiv.textContent = "Koneksi error: " + err.message;
+    errorDiv.style.display = "block";
+  }
+});
+</script>
+
+</body>
+</html>

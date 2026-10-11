@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kontrol Gerbang</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .nav-left {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .nav-right {
+      display: flex;
+      gap: 10px;
+    }
+    .user-badge {
+      background: #0f3460;
+      color: #e94560;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .admin-only {
+      display: none;
+    }
+    .admin .admin-only {
+      display: inline-block;
+    }
+    .access-denied {
+      text-align: center;
+      padding: 60px 20px;
+      background: #0f3460;
+      border-radius: 12px;
+    }
+    .access-denied h2 {
+      color: #e94560;
+      margin-bottom: 20px;
+    }
+    .access-denied p {
+      color: #888;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<header>Kontrol Gerbang</header>
+
+<div class="container" id="mainContainer">
+  
+  <div class="nav">
+    <div class="nav-left">
+      <a href="index.html" class="button">Dashboard</a>
+      <span class="user-badge" id="userBadge">-</span>
+    </div>
+    <div class="nav-right">
+      <button class="button admin-only" id="deleteBtn" onclick="hapus()">Hapus History</button>
+      <button class="button" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div id="accessDenied" class="access-denied" style="display: none;">
+    <h2>Akses Ditolak</h2>
+    <p>Halaman ini hanya dapat diakses oleh Admin.</p>
+    <a href="index.html" class="button">Kembali ke Dashboard</a>
+  </div>
+
+  <div id="content" class="admin-only">
+    <div class="card">
+      <h3>Kontrol Gerbang</h3>
+      <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+        <button class="button" style="background: #27ae60;" onclick="kirim('BUKA - MASUK')">Buka Gerbang MASUK</button>
+        <button class="button" style="background: #27ae60;" onclick="kirim('BUKA - KELUAR')">Buka Gerbang KELUAR</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>History Perintah</h3>
+      </div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let currentUser = null;
+let socket = null;
+const log = document.getElementById("log");
+
+async function checkAuth() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  if (!sessionId) {
+    window.location.href = "login.html";
+    return false;
+  }
+  
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: { "X-Session-Id": sessionId }
+    });
+    const data = await res.json();
+    
+    if (!data.authenticated) {
+      sessionStorage.removeItem("sessionId");
+      window.location.href = "login.html";
+      return false;
+    }
+    
+    currentUser = data.user;
+    renderUI();
+    return true;
+  } catch (err) {
+    window.location.href = "login.html";
+    return false;
+  }
+}
+
+function renderUI() {
+  document.getElementById("userBadge").textContent = currentUser.username;
+  
+  if (currentUser.role !== "admin") {
+    document.getElementById("accessDenied").style.display = "block";
+    document.getElementById("content").style.display = "none";
+  } else {
+    document.body.classList.add("admin");
+    document.getElementById("accessDenied").style.display = "none";
+    document.getElementById("content").style.display = "block";
+  }
+}
+
+function getSessionId() {
+  return sessionStorage.getItem("sessionId");
+}
+
+async function loadHistory() {
+  const sessionId = getSessionId();
+  
+  const res = await fetch("/api/history/perintah", {
+    headers: { "X-Session-Id": sessionId }
+  });
+  
+  const data = await res.json();
+  [...data].reverse().forEach(add);
+}
+
+function connectSocket() {
+  const sessionId = getSessionId();
+  
+  socket = io({
+    auth: { sessionId }
+  });
+
+  socket.on("mqtt_message", d => {
+    if (d.topic === "gerbang/perintah") add(d);
+  });
+
+  socket.on("error", (err) => {
+    alert("Error: " + err.message);
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err.message);
+  });
+}
+
+function kirim(cmd) {
+  if (!socket || !socket.connected) {
+    alert("Koneksi socket tidak aktif");
+    return;
+  }
+  socket.emit("kirim_perintah", cmd);
+}
+
+function add(d) {
+  const div = document.createElement("div");
+  div.className = "entry";
+  div.innerHTML = `
+    <div class="time">${new Date(d.ts).toLocaleString()}</div>
+    <pre>${escapeHtml(d.message)}</pre>
+  `;
+  log.prepend(div);
+}
+
+async function hapus() {
+  if (!confirm("Yakin ingin hapus semua history?")) return;
+  
+  const sessionId = getSessionId();
+  
+  await fetch("/api/history/perintah", {
+    method: "DELETE",
+    headers: { "X-Session-Id": sessionId }
+  });
+  
+  log.innerHTML = "";
+}
+
+function logout() {
+  sessionStorage.removeItem("sessionId");
+  sessionStorage.removeItem("user");
+  window.location.href = "login.html";
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+  );
+}
+
+// Initialize
+checkAuth().then(authenticated => {
+  if (authenticated) {
+    if (currentUser.role === "admin") {
+      loadHistory();
+      connectSocket();
+    }
+  }
+});
+</script>
+
+</body>
+</html>

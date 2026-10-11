@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Sementara - VALT v6</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <style>
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .page-title { font-size: 24px; font-weight: 700; color: #111827; }
+    .add-form { background: white; border-radius: 18px; padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08); }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 13px; font-weight: 600; color: #374151; }
+    .form-group input, .form-group select { padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 14px; transition: 0.2s; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+    .form-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-item { background: white; border-radius: 14px; padding: 16px; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,0.05); }
+    .stat-value { font-size: 28px; font-weight: 700; color: #1f2937; }
+    .stat-label { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .user-card { background: white; border-radius: 16px; padding: 18px; box-shadow: 0 4px 14px rgba(0,0,0,0.05); display: grid; grid-template-columns: auto 1fr auto; gap: 16px; align-items: center; margin-bottom: 12px; }
+    .user-card.inactive { opacity: 0.5; background: #f9fafb; }
+    .user-avatar { width: 80px; height: 80px; border-radius: 12px; object-fit: cover; background: #e5e7eb; display: flex; align-items: center; justify-content: center; font-size: 32px; overflow: hidden; }
+    .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .user-info { display: flex; flex-direction: column; gap: 6px; }
+    .user-name { font-size: 18px; font-weight: 700; color: #111827; }
+    .user-plate { font-size: 16px; font-family: monospace; background: #e0e7ff; color: #1e3a8a; padding: 4px 10px; border-radius: 6px; display: inline-block; margin-top: 4px; }
+    .user-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #6b7280; }
+    .user-meta span { display: flex; align-items: center; gap: 4px; }
+    .user-catatan { font-size: 13px; color: #374151; font-style: italic; }
+    .credits-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin-top: 8px; }
+    .credits-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+    .credits-high { background: #22c55e; }
+    .credits-medium { background: #f59e0b; }
+    .credits-low { background: #dc2626; }
+    .user-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn { padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: 0.2s; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .btn-warning:hover { background: #d97706; }
+    .btn-danger { background: #dc2626; color: white; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; }
+    .btn-secondary { background: #e5e7eb; color: #374151; }
+    .btn-secondary:hover { background: #d1d5db; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .modal.show { display: flex; }
+    .modal-content { background: white; border-radius: 18px; padding: 24px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .modal h3 { margin: 0 0 16px; font-size: 18px; }
+    .empty-state { text-align: center; padding: 48px; color: #6b7280; }
+    .history-list { max-height: 300px; overflow-y: auto; }
+    .history-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+    .history-item:last-child { border-bottom: none; }
+    .history-action { font-weight: 600; }
+    .history-action.created { color: #16a34a; }
+    .history-action.used { color: #2563eb; }
+    .history-action.expired { color: #dc2626; }
+    .history-action.deleted { color: #dc2626; }
+    .history-action.updated { color: #f59e0b; }
+    .history-time { color: #6b7280; }
+    .tab-nav { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab-btn { padding: 8px 16px; border: none; background: #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .tab-btn.active { background: #2563eb; color: white; }
+    .face-upload { display: flex; align-items: center; gap: 16px; }
+    .face-status { font-size: 12px; color: #6b7280; margin-top: 4px; }
+    .face-status.loading { color: #f59e0b; }
+    .face-status.ready { color: #22c55e; }
+    .face-status.error { color: #dc2626; }
+    .face-preview { width: 100px; height: 100px; border-radius: 12px; background: #f3f4f6; border: 2px dashed #d1d5db; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    .face-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .face-preview.has-image { border-style: solid; border-color: #22c55e; }
+    #faceInput { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span>👥</span>
+      <span>VALT v6 - User Sementara</span>
+    </div>
+  </header>
+
+  <div class="container">
+    
+    <div class="nav">
+      <div class="nav-left">
+        <a href="index.html" class="button">Dashboard</a>
+        <a href="stats.html" class="button">Statistik</a>
+        <a href="tamu.html" class="button">Kelola Tamu</a>
+      </div>
+      <div class="nav-right">
+        <button class="button" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="page-header">
+      <div class="page-title">User Sementara</div>
+      <div class="nav-right">
+        <button class="btn btn-primary" onclick="showAddModal()">+ Tambah User</button>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Total User</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statActive">0</div>
+        <div class="stat-label">Aktif</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statCredits">0</div>
+        <div class="stat-label">Total Credits</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statAccess">0</div>
+        <div class="stat-label">Total Akses</div>
+      </div>
+    </div>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab('users')">Daftar User</button>
+      <button class="tab-btn" onclick="switchTab('history')">Riwayat Akses</button>
+    </div>
+
+    <div class="card" id="usersTab">
+      <div class="card-head">
+        <h3>Daftar User Sementara</h3>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+          <input type="checkbox" id="showInactive" onchange="loadUsers()">
+          Tampilkan yang nonaktif
+        </label>
+      </div>
+      <div id="usersList"></div>
+    </div>
+
+    <div class="card" id="historyTab" style="display: none;">
+      <div class="card-head">
+        <h3>Riwayat Akses</h3>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+  </div>
+
+  <!-- Add Modal -->
+  <div class="modal" id="addModal">
+    <div class="modal-content">
+      <h3>Tambah User Sementara</h3>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Foto Wajah</label>
+          <div class="face-upload">
+            <div class="face-preview" id="facePreview" onclick="document.getElementById('faceInput').click()">
+              <span style="color: #9ca3af;">📷</span>
+            </div>
+            <div>
+              <p style="font-size: 13px; color: #6b7280; margin: 0 0 8px;">Klik untuk upload foto</p>
+              <button class="btn btn-secondary btn-sm" onclick="event.stopPropagation(); document.getElementById('faceInput').click()">Pilih File</button>
+              <div class="face-status" id="faceStatus">Memuat model wajah...</div>
+            </div>
+          </div>
+          <input type="file" id="faceInput" accept="image/*" onchange="previewFace(this)">
+        </div>
+        <div class="form-group">
+          <label>Nama</label>
+          <input type="text" id="addName" placeholder="Nama Lengkap">
+        </div>
+        <div class="form-group">
+          <label>Plat Nomor</label>
+          <div id="plateCheckboxes" style="border:1px solid #e5e7eb;border-radius:10px;padding:8px;max-height:150px;overflow-y:auto;">
+            <div style="padding:8px;color:#9ca3af;font-size:13px;">Memuat plat kendaraan...</div>
+          </div>
+          <div style="font-size:12px;color:#6b7280;margin-top:4px;" id="selectedPlates">Belum ada plat dipilih</div>
+        </div>
+        <div class="form-group">
+          <label>Jumlah Credits</label>
+          <input type="number" id="addCredits" value="10" min="1" max="100">
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Catatan</label>
+          <input type="text" id="addCatatan" placeholder="Contoh: Tamu Pak Budi, Pak RC, dll">
+        </div>
+        <div class="form-group">
+          <label>Kepala Keluarga</label>
+          <select id="addHeadUsername">
+            <option value="">Pilih kepala keluarga...</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeAddModal()">Batal</button>
+        <button class="btn btn-primary" onclick="addUser()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal" id="editModal">
+    <div class="modal-content">
+      <h3>Edit User</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nama</label>
+          <input type="text" id="editName" disabled style="background: #f3f4f6;">
+        </div>
+        <div class="form-group">
+          <label>Plat Nomor</label>
+          <input type="text" id="editPlate" disabled style="background: #f3f4f6;">
+        </div>
+        <div class="form-group">
+          <label>Credits Baru</label>
+          <input type="number" id="editCredits" min="1" max="100">
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Catatan</label>
+          <input type="text" id="editCatatan">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-secondary" onclick="closeEditModal()">Batal</button>
+        <button class="btn btn-primary" onclick="saveEdit()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div class="modal" id="historyModal">
+    <div class="modal-content">
+      <h3>Riwayat User</h3>
+      <div id="userHistoryList" class="history-list"></div>
+      <div class="form-actions" style="margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeHistoryModal()">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sessionId = sessionStorage.getItem("sessionId");
+    if (!sessionId) window.location.href = "login.html";
+
+    let modelsLoaded = false;
+    let currentTab = 'users';
+    let editingUser = null;
+
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me", { headers: { "X-Session-Id": sessionId } });
+        const data = await res.json();
+        if (!data.authenticated || data.user.role !== "admin") {
+          window.location.href = "deteksi.html";
+          return false;
+        }
+        return true;
+      } catch {
+        window.location.href = "login.html";
+        return false;
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('usersTab').style.display = tab === 'users' ? 'block' : 'none';
+      document.getElementById('historyTab').style.display = tab === 'history' ? 'block' : 'none';
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tab));
+      });
+      if (tab === 'history') loadHistory();
+    }
+
+    function showAddModal() {
+      document.getElementById('addName').value = '';
+      document.getElementById('addCredits').value = '10';
+      document.getElementById('addCatatan').value = '';
+      document.getElementById('addHeadUsername').value = '';
+      document.getElementById('facePreview').innerHTML = '<span style="color: #9ca3af;">📷</span>';
+      document.getElementById('facePreview').classList.remove('has-image');
+      document.getElementById('selectedPlates').textContent = 'Belum ada plat dipilih';
+      loadHouseholdPlates();
+      document.getElementById('addModal').classList.add('show');
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModal').classList.remove('show');
+    }
+
+    function previewFace(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('facePreview');
+          preview.innerHTML = `<img src="${e.target.result}">`;
+          preview.classList.add('has-image');
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
+
+    async function addUser() {
+      const name = document.getElementById('addName').value.trim();
+      const plateCheckboxes = document.querySelectorAll('#plateCheckboxes input[type="checkbox"]:checked');
+      const plates = Array.from(plateCheckboxes).map(cb => cb.value);
+      const credits = parseInt(document.getElementById('addCredits').value);
+      const catatan = document.getElementById('addCatatan').value.trim();
+      const head_username = document.getElementById('addHeadUsername').value;
+
+      if (!name) {
+        alert("Nama harus diisi");
+        return;
+      }
+      if (plates.length === 0) {
+        alert("Pilih minimal satu plat nomor");
+        return;
+      }
+      if (!credits || credits < 1) {
+        alert("Credits minimal 1");
+        return;
+      }
+
+      const saveBtn = document.querySelector('#addModal .btn-primary');
+      const originalText = saveBtn.textContent;
+      saveBtn.textContent = 'Menyimpan...';
+      saveBtn.disabled = true;
+
+      const formData = new FormData();
+      formData.append('name', name);
+      plates.forEach(p => formData.append('plate', p));
+      formData.append('credits', credits);
+      formData.append('catatan', catatan);
+      if (head_username) {
+        formData.append('head_username', head_username);
+      }
+
+      const faceInput = document.getElementById('faceInput');
+      if (faceInput.files && faceInput.files[0]) {
+        formData.append('face_image', faceInput.files[0]);
+      }
+
+      try {
+        const res = await fetch("/api/vp", {
+          method: "POST",
+          headers: { "X-Session-Id": sessionId },
+          body: formData
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeAddModal();
+          loadUsers();
+        } else {
+          alert("Gagal: " + (data.error || "Unknown error"));
+        }
+      } catch (e) {
+        alert("Error: " + e.message);
+      } finally {
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+      }
+    }
+
+    function showEditModal(user) {
+      editingUser = user;
+      document.getElementById('editName').value = user.name;
+      document.getElementById('editPlate').value = user.plate_original || user.plate;
+      document.getElementById('editCredits').value = user.credits_original || user.credits;
+      document.getElementById('editCatatan').value = user.catatan || '';
+      document.getElementById('editModal').classList.add('show');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('show');
+      editingUser = null;
+    }
+
+    async function saveEdit() {
+      if (!editingUser) return;
+      const credits = parseInt(document.getElementById('editCredits').value);
+      const catatan = document.getElementById('editCatatan').value.trim();
+
+      try {
+        const res = await fetch(`/api/vp/${editingUser.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "X-Session-Id": sessionId },
+          body: JSON.stringify({ credits, catatan })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeEditModal();
+          loadUsers();
+        } else {
+          alert("Gagal: " + (data.error || "Unknown error"));
+        }
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm("Hapus user ini? Tindakan ini tidak dapat dibatalkan.")) return;
+      try {
+        const res = await fetch(`/api/vp/${id}`, {
+          method: "DELETE",
+          headers: { "X-Session-Id": sessionId }
+        });
+        const data = await res.json();
+        if (data.ok) loadUsers();
+        else alert("Gagal menghapus");
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
+    }
+
+    async function showUserHistory(id) {
+      try {
+        const res = await fetch(`/api/vp/${id}/history`, {
+          headers: { "X-Session-Id": sessionId }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          renderUserHistory(data.history);
+          document.getElementById('historyModal').classList.add('show');
+        }
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
+    }
+
+    function renderUserHistory(history) {
+      const list = document.getElementById('userHistoryList');
+      if (!history.length) {
+        list.innerHTML = '<p style="color: #6b7280; text-align: center;">Belum ada riwayat</p>';
+        return;
+      }
+      list.innerHTML = history.map(h => `
+        <div class="history-item">
+          <div>
+            <span class="history-action ${h.action}">${h.action.toUpperCase()}</span>
+            <span style="color: #374151; margin-left: 8px;">${h.detail}</span>
+          </div>
+          <span class="history-time">${h.timestamp}</span>
+        </div>
+      `).join('');
+    }
+
+    function closeHistoryModal() {
+      document.getElementById('historyModal').classList.remove('show');
+    }
+
+    async function loadUsers() {
+      const showInactive = document.getElementById('showInactive').checked;
+      try {
+        const res = await fetch(`/api/vp?active=${!showInactive}`, {
+          headers: { "X-Session-Id": sessionId }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          renderStats(data.stats);
+          renderUsers(data.users);
+        }
+      } catch (e) {
+        console.error("Load error:", e);
+      }
+    }
+
+    function renderStats(stats) {
+      document.getElementById('statTotal').textContent = stats.total || 0;
+      document.getElementById('statActive').textContent = stats.active || 0;
+      document.getElementById('statCredits').textContent = stats.total_credits || 0;
+      document.getElementById('statAccess').textContent = stats.total_accesses || 0;
+    }
+
+    function renderUsers(users) {
+      const list = document.getElementById('usersList');
+      if (!users.length) {
+        list.innerHTML = '<div class="empty-state"><div style="font-size: 48px; margin-bottom: 16px;">👥</div><p>Belum ada user sementara</p><p style="font-size: 13px;">Klik "Tambah User" untuk registrasi</p></div>';
+        return;
+      }
+      list.innerHTML = users.map(u => {
+        const credits = u.credits || 0;
+        const creditsOrig = u.credits_original || 1;
+        const pct = Math.round((credits / creditsOrig) * 100);
+        const isActive = u.active !== false;
+        const creditClass = pct > 60 ? 'credits-high' : pct > 20 ? 'credits-medium' : 'credits-low';
+        const avatarContent = u.face_image 
+          ? `<img src="${u.face_image}" alt="${u.name}">` 
+          : '<span style="font-size: 32px;">👤</span>';
+
+        return `
+          <div class="user-card ${isActive ? '' : 'inactive'}">
+            <div class="user-avatar">${avatarContent}</div>
+            <div class="user-info">
+              <div class="user-name">${u.name}</div>
+              <div class="user-plate">${u.plate_original || u.plate || 'Tanpa Plat'}</div>
+              <div class="user-meta">
+                <span>📊 Credits: ${credits}/${creditsOrig}</span>
+                <span>👤 ${u.created_by}</span>
+                <span>📅 ${u.created_at}</span>
+                ${u.last_used ? `<span>🔄 ${u.last_used}</span>` : ''}
+                <span>🚪 ${u.use_count || 0} akses</span>
+              </div>
+              ${u.catatan ? `<div class="user-catatan">${u.catatan}</div>` : ''}
+              <div class="credits-bar">
+                <div class="credits-fill ${creditClass}" style="width: ${pct}%"></div>
+              </div>
+            </div>
+            <div class="user-actions">
+              <button class="btn btn-warning btn-sm" onclick="showEditModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">Edit</button>
+              <button class="btn btn-secondary btn-sm" onclick="showUserHistory('${u.id}')">Riwayat</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteUser('${u.id}')">Hapus</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadHistory() {
+      try {
+        const res = await fetch('/api/vp/history/all?limit=100', {
+          headers: { "X-Session-Id": sessionId }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          renderHistory(data.history);
+        }
+      } catch (e) {
+        console.error("Load history error:", e);
+      }
+    }
+
+    function renderHistory(history) {
+      const list = document.getElementById('historyList');
+      if (!history.length) {
+        list.innerHTML = '<div class="empty-state"><p>Belum ada riwayat akses</p></div>';
+        return;
+      }
+      list.innerHTML = history.map(h => `
+        <div class="history-item">
+          <div>
+            <span class="history-action ${h.action}">${h.action.toUpperCase()}</span>
+            <span style="color: #374151; margin-left: 8px;">[${h.user_id}] ${h.detail}</span>
+          </div>
+          <span class="history-time">${h.timestamp}</span>
+        </div>
+      `).join('');
+    }
+
+    async function loadModels() {
+      const statusEl = document.getElementById('faceStatus');
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+        await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+        modelsLoaded = true;
+        if (statusEl) {
+          statusEl.textContent = 'Model siap - encoding wajah akan dibuat';
+          statusEl.className = 'face-status ready';
+        }
+        console.log("Face API models loaded");
+      } catch (e) {
+        console.error("Failed to load face models:", e);
+        if (statusEl) {
+          statusEl.textContent = 'Model gagal dimuat - tanpa encoding wajah';
+          statusEl.className = 'face-status error';
+        }
+      }
+    }
+
+    async function loadHeads() {
+      try {
+        const res = await fetch('/api/residents/heads');
+        const data = await res.json();
+        if (data.ok && data.data) {
+          const select = document.getElementById('addHeadUsername');
+          select.innerHTML = '<option value="">Pilih kepala keluarga...</option>' +
+            data.data.map(h => `<option value="${h.username}">${h.name || h.username} (${h.house_address || '-'})</option>`).join('');
+          select.onchange = function() {
+            if (this.value) {
+              loadHouseholdPlates(this.value);
+            }
+          };
+        }
+      } catch (e) {
+        console.error("Load heads error:", e);
+      }
+    }
+
+    async function loadHouseholdPlates(headUsername) {
+      let url = '/api/residents/household-plates';
+      if (headUsername) {
+        url += '?head_username=' + encodeURIComponent(headUsername);
+      }
+      try {
+        const res = await fetch(url, {
+          headers: sessionId ? { 'X-Session-Id': sessionId } : {}
+        });
+        const data = await res.json();
+        const container = document.getElementById('plateCheckboxes');
+        const selectedEl = document.getElementById('selectedPlates');
+        if (data.ok && data.plates && data.plates.length > 0) {
+          container.innerHTML = data.plates.map(p =>
+            `<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;font-size:14px;">
+              <input type="checkbox" value="${p}" onchange="updateSelectedPlates()" style="width:16px;height:16px;">
+              <span>${p}</span>
+            </label>`
+          ).join('');
+          updateSelectedPlates();
+        } else {
+          container.innerHTML = '<div style="padding:8px;color:#9ca3af;font-size:13px;">Tidak ada plat kendaraan terdaftar</div>';
+          selectedEl.textContent = 'Tidak ada plat tersedia';
+        }
+      } catch (e) {
+        console.error("Load plates error:", e);
+      }
+    }
+
+    function updateSelectedPlates() {
+      const checked = document.querySelectorAll('#plateCheckboxes input[type="checkbox"]:checked');
+      const plates = Array.from(checked).map(cb => cb.value);
+      document.getElementById('selectedPlates').textContent = plates.length > 0
+        ? 'Dipilih: ' + plates.join(', ')
+        : 'Belum ada plat dipilih';
+    }
+
+    function logout() {
+      sessionStorage.removeItem("sessionId");
+      window.location.href = "login.html";
+    }
+
+    window.addEventListener('load', () => {
+      loadModels();
+      loadHeads();
+      checkAuth().then(auth => {
+        if (auth) loadUsers();
+      });
+    });
+  </script>
+</body>
+</html>

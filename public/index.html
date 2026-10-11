@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistem Keamanan</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .user-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f3460;
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .user-info .username {
+      color: #e94560;
+      font-weight: bold;
+    }
+    .user-info .role {
+      background: #e94560;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+    .logout-btn {
+      background: #333;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .logout-btn:hover {
+      background: #555;
+    }
+    .guest-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #0f3460;
+      padding: 12px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .guest-info span {
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+<header>Sistem Keamanan</header>
+
+<div class="container">
+  
+  <div id="userInfo" class="user-info" style="display: none;">
+    <div>
+      <span class="username" id="username">-</span>
+      <span class="role" id="role">-</span>
+    </div>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div id="guestInfo" class="guest-info">
+    <span>Selamat datang, Tamu</span>
+    <a href="login.html" class="button" style="padding: 8px 16px; font-size: 14px;">Login Admin</a>
+  </div>
+
+  <div class="card">
+    <h3>Menu Utama</h3>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+      <a href="deteksi.html" class="button">History Deteksi</a>
+    </div>
+    <div id="adminMenu" style="display: none; margin-top: 12px; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+      <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <a href="perintah.html" class="button">Kontrol Gerbang</a>
+        <a href="tamu.html" class="button">Kelola Tamu</a>
+        <a href="temporary.html" class="button">User Sementara</a>
+        <a href="stats.html" class="button">Statistik</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentUser = null;
+
+async function checkAuth() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  const userStr = sessionStorage.getItem("user");
+  
+  console.log("checkAuth - sessionId from storage:", sessionId);
+  console.log("checkAuth - user from storage:", userStr);
+  
+  if (sessionId && userStr) {
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: { "X-Session-Id": sessionId }
+      });
+      const data = await res.json();
+      console.log("checkAuth - server response:", data);
+      
+      if (data.authenticated) {
+        currentUser = data.user;
+        sessionStorage.setItem("user", JSON.stringify(currentUser));
+      } else {
+        console.log("checkAuth - not authenticated, clearing session");
+        sessionStorage.removeItem("sessionId");
+        sessionStorage.removeItem("user");
+      }
+    } catch (err) {
+      console.error("Auth check error:", err);
+      sessionStorage.removeItem("sessionId");
+      sessionStorage.removeItem("user");
+    }
+  } else {
+    console.log("checkAuth - no session found");
+  }
+  
+  renderUI();
+}
+
+function renderUI() {
+  if (currentUser) {
+    document.getElementById("userInfo").style.display = "flex";
+    document.getElementById("guestInfo").style.display = "none";
+    document.getElementById("username").textContent = currentUser.username;
+    const roleEl = document.getElementById("role");
+    roleEl.textContent = currentUser.role;
+    
+    if (currentUser.role === "admin") {
+      document.getElementById("adminMenu").style.display = "block";
+    } else {
+      document.getElementById("adminMenu").style.display = "none";
+    }
+  } else {
+    document.getElementById("userInfo").style.display = "none";
+    document.getElementById("guestInfo").style.display = "flex";
+    document.getElementById("adminMenu").style.display = "none";
+  }
+}
+
+async function logout() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  if (sessionId) {
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "X-Session-Id": sessionId }
+      });
+    } catch (err) {}
+  }
+  
+  sessionStorage.removeItem("sessionId");
+  sessionStorage.removeItem("user");
+  window.location.href = "login.html";
+}
+
+checkAuth();
+</script>
+
+</body>
+</html>

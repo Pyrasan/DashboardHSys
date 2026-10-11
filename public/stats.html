@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Statistik</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+    }
+    .stat-card.masuk { border-top: 4px solid #16a34a; }
+    .stat-card.keluar { border-top: 4px solid #dc2626; }
+    .stat-card.valid { border-top: 4px solid #22c55e; }
+    .stat-card.invalid { border-top: 4px solid #ef4444; }
+    .stat-card.total { border-top: 4px solid #1e40af; }
+    .stat-card.still { border-top: 4px solid #f59e0b; }
+    .perf-details { line-height: 1.6; }
+    .perf-bars { display: flex; flex-direction: column; gap: 16px; }
+    .perf-bar-item { display: flex; align-items: center; gap: 12px; }
+    .perf-bar-label { width: 60px; font-weight: 600; font-size: 14px; }
+    .perf-bar-container { flex: 1; height: 24px; background: #f3f4f6; border-radius: 12px; overflow: hidden; }
+    .perf-bar { height: 100%; border-radius: 12px; transition: width 0.5s ease; }
+    .perf-bar-value { width: 80px; text-align: right; font-weight: 600; font-size: 14px; color: #374151; }
+    .detection-chart-container { 
+      width: 100%; 
+      height: 300px;
+      position: relative;
+    }
+    #detectionChart {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .chart-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .chart-pagination button {
+      padding: 6px 14px;
+      border: none;
+      background: #e5e7eb;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .chart-pagination button:hover {
+      background: #d1d5db;
+    }
+    .chart-pagination button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .chart-pagination .page-info {
+      font-size: 13px;
+      color: #6b7280;
+    }
+    
+    .stat-number {
+      font-size: 36px;
+      font-weight: bold;
+      color: #1f2937;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .chart-section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.05);
+    }
+    .chart-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #1f2937;
+    }
+    .hour-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 150px;
+      padding-bottom: 24px;
+    }
+    .hour-bar {
+      flex: 1;
+      background: linear-gradient(to top, #1e40af, #3b82f6);
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      position: relative;
+      transition: background 0.2s;
+    }
+    .hour-bar:hover {
+      background: linear-gradient(to top, #1e3a8a, #2563eb);
+    }
+    .hour-labels {
+      display: flex;
+      gap: 3px;
+    }
+    .hour-label {
+      flex: 1;
+      text-align: center;
+      font-size: 10px;
+      color: #9ca3af;
+    }
+    .peak-info {
+      background: #fef3c7;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+      color: #92400e;
+    }
+  </style>
+</head>
+<body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<header>Statistik</header>
+
+<div class="container">
+  
+  <div class="nav">
+    <div class="nav-left">
+      <a href="index.html" class="button">Dashboard</a>
+      <a href="tamu.html" class="button">Kelola Tamu</a>
+      <a href="temporary.html" class="button">User Sementara</a>
+    </div>
+    <div class="nav-right">
+      <button class="button" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number" style="font-size: 28px;">
+        <span id="totalMasuk">0</span> | <span id="totalKeluar">0</span>
+      </div>
+      <div class="stat-label">MASUK | KELUAR (24 jam)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" style="font-size: 28px;">
+        <span style="color: #16a34a;" id="validCount">0</span> | <span style="color: #dc2626;" id="invalidCount">0</span>
+      </div>
+      <div class="stat-label">Valid | Invalid (24 jam)</div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number" style="font-size: 28px;">
+        <span id="pendudukMasuk">0</span> | <span id="pendudukKeluar">0</span>
+      </div>
+      <div class="stat-label">Penduduk MASUK | KELUAR</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" style="font-size: 28px;">
+        <span id="tamuMasuk">0</span> | <span id="tamuKeluar">0</span>
+      </div>
+      <div class="stat-label">Tamu MASUK | KELUAR</div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card still">
+      <div class="stat-number" id="tamuInside">0</div>
+      <div class="stat-label">Tamu Still Inside</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" style="font-size: 24px;">
+        <span id="btnMasuk">0</span> | <span id="btnKeluar">0</span>
+      </div>
+      <div class="stat-label">Button MASUK | KELUAR</div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-title">Waktu Deteksi (ms)</div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number" style="font-size: 24px;" id="avgTotal">-</div>
+        <div class="stat-label">Avg Total (ms)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="font-size: 24px;" id="avgFace">-</div>
+        <div class="stat-label">Avg Face (ms)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" style="font-size: 24px;" id="avgPlate">-</div>
+        <div class="stat-label">Avg Plate (ms)</div>
+      </div>
+    </div>
+    <div class="perf-details" id="perfDetails" style="font-size: 13px; color: #6b7280; margin-top: 12px;"></div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-title">Grafik Waktu Deteksi (Per Detection)</div>
+    <div class="detection-chart-container">
+      <canvas id="detectionChart"></canvas>
+    </div>
+    <div class="chart-pagination">
+      <button id="pagePrev" onclick="changePage(-1)">&laquo; Prev</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button id="pageNext" onclick="changePage(1)">Next &raquo;</button>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-title">Hot Time - Aktivitas per Jam (24 jam terakhir)</div>
+    <div class="hour-bars" id="hourBars"></div>
+    <div class="hour-labels" id="hourLabels"></div>
+    <div class="peak-info" id="peakInfo"></div>
+  </div>
+
+</div>
+
+<script>
+async function checkAuth() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  if (!sessionId) {
+    window.location.href = "login.html";
+    return false;
+  }
+  
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: { "X-Session-Id": sessionId }
+    });
+    const data = await res.json();
+    
+    if (!data.authenticated || data.user.role !== "admin") {
+      window.location.href = "deteksi.html";
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    window.location.href = "login.html";
+    return false;
+  }
+}
+
+async function loadStats() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  const res = await fetch("/api/stats", {
+    headers: { "X-Session-Id": sessionId }
+  });
+  
+  const data = await res.json();
+  
+  if (!data.ok) {
+    console.error("Failed to load stats:", data);
+    return;
+  }
+  
+  const stats = data.stats;
+  
+  if (!stats) {
+    console.error("No stats returned:", data);
+    return;
+  }
+  
+  document.getElementById("totalMasuk").textContent = stats.total_masuk || 0;
+  document.getElementById("totalKeluar").textContent = stats.total_keluar || 0;
+  document.getElementById("validCount").textContent = stats.detection_valid || 0;
+  document.getElementById("invalidCount").textContent = stats.detection_invalid || 0;
+  
+  document.getElementById("tamuMasuk").textContent = stats.tamu ? stats.tamu.total_masuk : 0;
+  document.getElementById("tamuKeluar").textContent = stats.tamu ? stats.tamu.total_keluar : 0;
+  document.getElementById("tamuInside").textContent = stats.tamu ? stats.tamu.still_inside : 0;
+  document.getElementById("pendudukMasuk").textContent = stats.penduduk ? stats.penduduk.total_masuk : 0;
+  document.getElementById("pendudukKeluar").textContent = stats.penduduk ? stats.penduduk.total_keluar : 0;
+  document.getElementById("btnMasuk").textContent = stats.button ? stats.button.buka_masuk : 0;
+  document.getElementById("btnKeluar").textContent = stats.button ? stats.button.buka_keluar : 0;
+  
+  if (stats.performance) {
+    document.getElementById("avgTotal").textContent = stats.performance.total ? stats.performance.total.avg + " ms" : "-";
+    document.getElementById("avgFace").textContent = stats.performance.face ? stats.performance.face.avg + " ms" : "-";
+    document.getElementById("avgPlate").textContent = stats.performance.plate ? stats.performance.plate.avg + " ms" : "-";
+    
+    if (stats.performance.total) {
+      document.getElementById("perfDetails").innerHTML = `
+        <strong>Min / Max:</strong><br>
+        Total: ${stats.performance.total.min || 0}ms / ${stats.performance.total.max || 0}ms (${stats.performance.total.count || 0} detections)
+        <br>Face: ${stats.performance.face ? stats.performance.face.min : 0}ms / ${stats.performance.face ? stats.performance.face.max : 0}ms
+        <br>Plate: ${stats.performance.plate ? stats.performance.plate.min : 0}ms / ${stats.performance.plate ? stats.performance.plate.max : 0}ms
+      `;
+      
+      if (stats.performance.detections && stats.performance.detections.length > 0) {
+        allDetections = stats.performance.detections;
+        currentPage = 1;
+        renderDetectionChart();
+      }
+    }
+  }
+  
+  renderHotTimeChart(stats.hot_hours || {});
+}
+
+let detectionChart = null;
+let allDetections = [];
+let currentPage = 1;
+const ITEMS_PER_PAGE = 10;
+
+function changePage(delta) {
+  const totalPages = Math.ceil(allDetections.length / ITEMS_PER_PAGE);
+  const newPage = currentPage + delta;
+  if (newPage >= 1 && newPage <= totalPages) {
+    currentPage = newPage;
+    renderDetectionChart();
+  }
+}
+
+function renderDetectionChart() {
+  const canvas = document.getElementById('detectionChart');
+  const ctx = canvas.getContext('2d');
+  
+  if (detectionChart) {
+    detectionChart.destroy();
+  }
+  
+  const totalPages = Math.ceil(allDetections.length / ITEMS_PER_PAGE);
+  const start = (currentPage - 1) * ITEMS_PER_PAGE;
+  const end = start + ITEMS_PER_PAGE;
+  const pageDetections = allDetections.slice(start, end);
+  
+  const labels = pageDetections.map(d => '#' + d.index);
+  const totalData = pageDetections.map(d => d.total);
+  const faceData = pageDetections.map(d => d.face);
+  const plateData = pageDetections.map(d => d.plate);
+  
+  document.getElementById('pageInfo').textContent = `Halaman ${currentPage} dari ${totalPages}`;
+  document.getElementById('pagePrev').disabled = currentPage <= 1;
+  document.getElementById('pageNext').disabled = currentPage >= totalPages;
+  
+  detectionChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Total',
+          data: totalData,
+          borderColor: '#1e40af',
+          backgroundColor: 'rgba(30, 64, 175, 0.1)',
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Face',
+          data: faceData,
+          borderColor: '#16a34a',
+          backgroundColor: 'rgba(22, 163, 74, 0.1)',
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Plate',
+          data: plateData,
+          borderColor: '#dc2626',
+          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+          fill: true,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        tooltip: {
+          mode: 'index',
+          intersect: false,
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Waktu (ms)'
+          }
+        },
+        x: {
+          title: {
+            display: true,
+            text: 'Detection #'
+          },
+          ticks: {
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 20
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderHotTimeChart(hotHours) {
+  const hourBars = document.getElementById("hourBars");
+  const hourLabels = document.getElementById("hourLabels");
+  const peakInfo = document.getElementById("peakInfo");
+  
+  let maxCount = 0;
+  let peakHour = 0;
+  
+  for (let h = 0; h < 24; h++) {
+    const count = hotHours[h] || 0;
+    if (count > maxCount) {
+      maxCount = count;
+      peakHour = h;
+    }
+  }
+  
+  let barsHtml = "";
+  let labelsHtml = "";
+  
+  for (let h = 0; h < 24; h++) {
+    const count = hotHours[h] || 0;
+    const height = maxCount > 0 ? Math.max((count / maxCount) * 100, 5) : 5;
+    barsHtml += `<div class="hour-bar" style="height: ${height}%;" data-hour="${h}:00" data-count="${count}"></div>`;
+    labelsHtml += `<div class="hour-label">${h}</div>`;
+  }
+  
+  hourBars.innerHTML = barsHtml;
+  hourLabels.innerHTML = labelsHtml;
+  
+  if (maxCount > 0) {
+    const formattedHour = peakHour.toString().padStart(2, "0") + ":00";
+    peakInfo.innerHTML = `<strong>Jam Sibuk:</strong> ${formattedHour} dengan ${maxCount} deteksi`;
+  } else {
+    peakInfo.innerHTML = "Tidak ada data aktivitas dalam 24 jam terakhir";
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem("sessionId");
+  window.location.href = "login.html";
+}
+
+checkAuth().then(auth => {
+  if (auth) loadStats();
+});
+</script>
+
+</body>
+</html>

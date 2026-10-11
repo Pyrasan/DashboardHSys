@@ -1,0 +1,49 @@
+{
+  "penduduk": {
+    "cepis": {
+      "nama": "asd",
+      "plat_nomor": [
+        "K1234AG",
+        "F3124UAP"
+      ]
+    },
+    "elon": {
+      "nama": "asddddddd",
+      "plat_nomor": [
+        "G1234AA"
+      ]
+    },
+    "davai": {
+      "nama": "asdasdad",
+      "plat_nomor": [
+        "A1234FF"
+      ]
+    },
+    "gibran": {
+      "nama": "gibran",
+      "plat_nomor": [
+        "K1234AG",
+        "F3124UAP"
+      ]
+    },
+    "prabowo": {
+      "nama": "test",
+      "plat_nomor": [
+        "K1234AG",
+        "F3124UAP"
+      ]
+    },
+    "urmom": {
+      "nama": "asdsadklhfgl",
+      "plat_nomor": [
+        "G1234DF"
+      ]
+    },
+    "justin": {
+      "nama": "Justin Bieber",
+      "plat_nomor": [
+        "G1234AA"
+      ]
+    }
+  }
+}

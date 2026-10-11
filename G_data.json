@@ -1,0 +1,17 @@
+{
+    "g": {
+        "G0010": {
+            "waktu": "2026-05-28 13:03:14",
+            "plat_nomor": "L1111AA",
+            "foto": null,
+            "source": "simulation"
+        },
+        "G0011": {
+            "waktu": "2026-05-28 13:04:04",
+            "plat_nomor": "A3333AF",
+            "foto": null,
+            "source": "simulation"
+        }
+    },
+    "_max_id": 11
+}

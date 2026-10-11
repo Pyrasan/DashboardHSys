@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kelola Tamu</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .tamu-list {
+      display: grid;
+      gap: 16px;
+    }
+    .tamu-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .tamu-info {
+      flex: 1;
+    }
+    .tamu-id {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1e40af;
+    }
+    .tamu-plat {
+      font-size: 14px;
+      color: #374151;
+      margin-top: 4px;
+    }
+    .tamu-waktu {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .tamu-foto {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .delete-tamu-btn {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .delete-tamu-btn:hover {
+      background: #b91c1c;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #6b7280;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 32px;
+      font-weight: bold;
+      color: #1e40af;
+    }
+    .stat-label {
+      font-size: 14px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+    .chart-section {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .chart-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 16px;
+    }
+    .hour-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 120px;
+    }
+    .hour-bar {
+      flex: 1;
+      background: #1e40af;
+      border-radius: 4px 4px 0 0;
+      min-height: 4px;
+      position: relative;
+    }
+    .hour-bar::after {
+      content: attr(data-hour);
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: #6b7280;
+    }
+  </style>
+</head>
+<body>
+
+<header>Kelola Tamu</header>
+
+<div class="container">
+  
+  <div class="nav">
+    <div class="nav-left">
+      <a href="index.html" class="button">Dashboard</a>
+      <a href="stats.html" class="button">Statistik</a>
+      <a href="temporary.html" class="button">User Sementara</a>
+    </div>
+    <div class="nav-right">
+      <button class="button" onclick="logout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>Daftar Tamu</h3>
+      <span id="totalTamu" class="badge-count">0 tamu</span>
+    </div>
+    <div id="tamuList" class="tamu-list"></div>
+  </div>
+
+</div>
+
+<script>
+async function checkAuth() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  if (!sessionId) {
+    window.location.href = "login.html";
+    return false;
+  }
+  
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: { "X-Session-Id": sessionId }
+    });
+    const data = await res.json();
+    
+    if (!data.authenticated || data.user.role !== "admin") {
+      window.location.href = "deteksi.html";
+      return false;
+    }
+    
+    return true;
+  } catch (err) {
+    window.location.href = "login.html";
+    return false;
+  }
+}
+
+async function loadTamu() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  const res = await fetch("/api/tamu", {
+    headers: { "X-Session-Id": sessionId }
+  });
+  
+  const data = await res.json();
+  
+  if (data.ok && data.data.length > 0) {
+    document.getElementById("tamuList").innerHTML = data.data.map(t => `
+      <div class="tamu-card">
+        <div class="tamu-info">
+          <div class="tamu-id">${t.id}</div>
+          <div class="tamu-plat">Plat: ${t.plat_nomor}</div>
+          <div class="tamu-waktu">${t.waktu}</div>
+        </div>
+        ${t.foto ? `<img src="/${t.foto}" class="tamu-foto" onclick="openPreview('/${t.foto}')">` : ''}
+        <button class="delete-tamu-btn" onclick="hapusTamu('${t.id}')">Hapus</button>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById("tamuList").innerHTML = '<div class="empty-state">Tidak ada data tamu</div>';
+  }
+  
+  document.getElementById("totalTamu").textContent = `${data.data.length} tamu`;
+}
+
+async function hapusTamu(id) {
+  if (!confirm(`Yakin ingin hapus ${id}?`)) return;
+  
+  const sessionId = sessionStorage.getItem("sessionId");
+  
+  const res = await fetch(`/api/tamu/${id}`, {
+    method: "DELETE",
+    headers: { "X-Session-Id": sessionId }
+  });
+  
+  if (res.ok) {
+    loadTamu();
+  }
+}
+
+function openPreview(src) {
+  const w = window.open("", "_blank");
+  w.document.write(`
+    <html>
+      <head>
+        <title>Preview</title>
+        <style>
+          body { margin: 0; background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; }
+          img { max-width: 95%; max-height: 95%; border-radius: 12px; }
+        </style>
+      </head>
+      <body><img src="${src}" /></body>
+    </html>
+  `);
+}
+
+function logout() {
+  sessionStorage.removeItem("sessionId");
+  window.location.href = "login.html";
+}
+
+checkAuth().then(auth => {
+  if (auth) loadTamu();
+});
+</script>
+
+</body>
+</html>

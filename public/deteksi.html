@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>History Deteksi</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .nav-left {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .nav-right {
+      display: flex;
+      gap: 10px;
+    }
+    .user-badge {
+      background: #0f3460;
+      color: #e94560;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .guest-badge {
+      background: #0f3460;
+      color: #888;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header>History Deteksi</header>
+
+<div class="container">
+  
+  <div class="nav">
+    <div class="nav-left">
+      <a href="index.html" class="button">Dashboard</a>
+      <span class="user-badge" id="userBadge" style="display: none;">-</span>
+      <span class="guest-badge" id="guestBadge">Tamu</span>
+    </div>
+    <div class="nav-right">
+      <a href="login.html" class="button" id="loginBtn">Login Admin</a>
+      <button class="button admin-only" id="deleteBtn" onclick="hapus()" style="display: none;">Hapus History</button>
+      <button class="button" id="logoutBtn" onclick="logout()" style="display: none;">Logout</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <h3>History Deteksi</h3>
+      <span id="totalData" class="badge-count">0 data</span>
+    </div>
+    <div id="log" class="history-grid"></div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let currentUser = null;
+let socket = null;
+
+async function checkAuth() {
+  const sessionId = sessionStorage.getItem("sessionId");
+  const userStr = sessionStorage.getItem("user");
+  
+  if (sessionId && userStr) {
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: { "X-Session-Id": sessionId }
+      });
+      const data = await res.json();
+      
+      if (data.authenticated) {
+        currentUser = data.user;
+        sessionStorage.setItem("user", JSON.stringify(currentUser));
+      } else {
+        sessionStorage.removeItem("sessionId");
+        sessionStorage.removeItem("user");
+      }
+    } catch (err) {
+      console.error("Auth check error:", err);
+      sessionStorage.removeItem("sessionId");
+      sessionStorage.removeItem("user");
+    }
+  }
+  
+  renderUI();
+  loadHistory();
+  connectSocket();
+}
+
+function renderUI() {
+  if (currentUser) {
+    document.getElementById("userBadge").style.display = "inline-block";
+    document.getElementById("userBadge").textContent = currentUser.username;
+    document.getElementById("guestBadge").style.display = "none";
+    document.getElementById("loginBtn").style.display = "none";
+    document.getElementById("logoutBtn").style.display = "inline-block";
+    
+    if (currentUser.role === "admin") {
+      document.getElementById("deleteBtn").style.display = "inline-block";
+      document.body.classList.add("admin");
+    } else {
+      document.body.classList.remove("admin");
+    }
+  } else {
+    document.getElementById("userBadge").style.display = "none";
+    document.getElementById("guestBadge").style.display = "inline-block";
+    document.getElementById("loginBtn").style.display = "inline-block";
+    document.getElementById("logoutBtn").style.display = "none";
+    document.getElementById("deleteBtn").style.display = "none";
+    document.body.classList.remove("admin");
+  }
+}
+
+function getSessionId() {
+  return sessionStorage.getItem("sessionId");
+}
+
+async function loadHistory() {
+  const sessionId = getSessionId();
+  
+  const headers = {};
+  if (sessionId) headers["X-Session-Id"] = sessionId;
+  
+  const res = await fetch("/api/history/deteksi", { headers });
+  const data = await res.json();
+  log.innerHTML = "";
+  [...data].reverse().forEach(add);
+  updateCount();
+}
+
+function connectSocket() {
+  const sessionId = getSessionId();
+  
+  socket = io({
+    auth: { sessionId: sessionId || "guest" }
+  });
+
+  socket.on("mqtt_message", d => {
+    if (d.topic === "gerbang/deteksi") {
+      add(d);
+      updateCount();
+    }
+  });
+
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err.message);
+  });
+}
+
+function add(d) {
+  let parsed = {};
+  try {
+    parsed = JSON.parse(d.message);
+  } catch (e) {
+    parsed = { raw: d.message };
+  }
+
+  const waktu = parsed.waktu || new Date(d.ts).toLocaleString();
+  const nama = parsed.muka || "-";
+  const plat = parsed.plat || "-";
+  const mode = parsed.mode || "-";
+  const frameImage = parsed.frame_image ? `/${parsed.frame_image}` : "";
+  const faceImage = parsed.face_image ? `/${parsed.face_image}` : "";
+  const plateImage = parsed.plate_image ? `/${parsed.plate_image}` : "";
+  const faceValid = parsed.face_valid;
+  const plateValid = parsed.plate_valid;
+  const accessGranted = parsed.access_granted;
+  const isVp = nama && nama.includes("VP-");
+
+  const modeClass = mode === "MASUK" ? "masuk" : mode === "KELUAR" ? "keluar" : "unknown";
+  
+  const faceValidClass = faceValid === true ? "valid" : faceValid === false ? "invalid" : isVp ? "valid" : "pending";
+  const faceValidText = faceValid === true ? "Valid" : faceValid === false ? "Invalid" : isVp ? "Valid" : "New";
+  
+  const plateValidClass = plateValid === true ? "valid" : plateValid === false ? "invalid" : isVp ? "valid" : "pending";
+  const plateValidText = plateValid === true ? "Valid" : plateValid === false ? "Invalid" : isVp ? "Valid" : "New";
+
+  const div = document.createElement("div");
+  div.className = "history-card";
+  div.innerHTML = `
+    <div class="history-summary">
+      <div class="summary-left">
+        <div class="history-time">${escapeHtml(waktu)}</div>
+        <div class="history-name">${escapeHtml(nama)}</div>
+        <div class="history-plate-mini">Plat: ${escapeHtml(plat)}</div>
+      </div>
+
+      <div class="summary-right">
+        <span class="status-badge ${modeClass}">${escapeHtml(mode)}</span>
+        <button class="delete-btn admin-only" onclick="event.stopPropagation(); hapusSatuan(${d.ts})">Hapus</button>
+        <span class="toggle-icon">▼</span>
+      </div>
+    </div>
+
+    <div class="history-body">
+      <div class="validation-row">
+        <div class="validation-badge face ${faceValidClass}">
+          <span class="badge-label">Wajah</span>
+          <span class="badge-status">${faceValidText}</span>
+        </div>
+        <div class="validation-badge plate ${plateValidClass}">
+          <span class="badge-label">Plat</span>
+          <span class="badge-status">${plateValidText}</span>
+        </div>
+      </div>
+
+      <div class="info-block">
+        <div class="label">Plat Nomor</div>
+        <div class="value plate">${escapeHtml(plat)}</div>
+      </div>
+
+      <div class="image-row">
+        <div class="image-box">
+          <div class="label">Full Frame</div>
+          ${
+            frameImage
+              ? `<img src="${frameImage}" alt="Full frame" class="previewable" data-src="${frameImage}">`
+              : `<div class="img-empty">Tidak ada gambar</div>`
+          }
+        </div>
+
+        <div class="image-box">
+          <div class="label">Face Crop</div>
+          ${
+            faceImage
+              ? `<img src="${faceImage}" alt="Foto wajah" class="previewable" data-src="${faceImage}">`
+              : `<div class="img-empty">Tidak ada gambar</div>`
+          }
+        </div>
+
+        <div class="image-box">
+          <div class="label">Plate Crop</div>
+          ${
+            plateImage
+              ? `<img src="${plateImage}" alt="Foto plat" class="previewable" data-src="${plateImage}">`
+              : `<div class="img-empty">Tidak ada gambar</div>`
+          }
+        </div>
+      </div>
+    </div>
+  `;
+
+  const summary = div.querySelector(".history-summary");
+  summary.addEventListener("click", () => {
+    document.querySelectorAll(".history-card.open").forEach(card => {
+      if (card !== div) card.classList.remove("open");
+    });
+    div.classList.toggle("open");
+  });
+
+  div.querySelectorAll(".previewable").forEach(img => {
+    img.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openPreview(img.dataset.src);
+    });
+  });
+
+  if (currentUser && currentUser.role !== "admin") {
+    div.querySelector(".delete-btn").style.display = "none";
+  }
+
+  log.prepend(div);
+}
+
+function updateCount() {
+  totalData.textContent = `${log.children.length} data`;
+}
+
+async function hapus() {
+  if (!confirm("Yakin ingin hapus semua history?")) return;
+  
+  const sessionId = getSessionId();
+  
+  await fetch("/api/history/deteksi", {
+    method: "DELETE",
+    headers: { "X-Session-Id": sessionId }
+  });
+  
+  log.innerHTML = "";
+  updateCount();
+}
+
+async function hapusSatuan(ts) {
+  if (!confirm("Yakin ingin hapus data ini?")) return;
+  
+  const sessionId = getSessionId();
+  console.log("Deleting entry with ts:", ts, "sessionId:", sessionId);
+  
+  const res = await fetch(`/api/history/deteksi/${ts}`, {
+    method: "DELETE",
+    headers: { 
+      "X-Session-Id": sessionId,
+      "Content-Type": "application/json"
+    }
+  });
+  
+  console.log("Delete response status:", res.status);
+  
+  if (res.ok) {
+    const card = document.querySelector(`.history-card .delete-btn[onclick*="${ts}"]`);
+    if (card) {
+      card.closest(".history-card").remove();
+    }
+    updateCount();
+  } else {
+    const error = await res.json();
+    console.error("Delete failed:", error);
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem("sessionId");
+  sessionStorage.removeItem("user");
+  window.location.reload();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+  );
+}
+
+function openPreview(src) {
+  const w = window.open("", "_blank");
+  w.document.write(`
+    <html>
+      <head>
+        <title>Preview Gambar</title>
+        <style>
+          body {
+            margin: 0;
+            background: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+          }
+          img {
+            max-width: 95%;
+            max-height: 95%;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255,255,255,.15);
+          }
+        </style>
+      </head>
+      <body>
+        <img src="${src}" />
+      </body>
+    </html>
+  `);
+}
+
+checkAuth();
+</script>
+
+</body>
+</html>
