@@ -1,0 +1,21 @@
+{
+  "registered": [
+    {
+      "image": "car1.jpg",
+      "plate": "B1234ABC",
+      "person": "cepis"
+    },
+    {
+      "image": "car2.jpg",
+      "plate": "B5678DEF",
+      "person": "admin"
+    }
+  ],
+  "unregistered": [
+    {
+      "image": "car3.jpg",
+      "plate": "B9999XXX",
+      "person": "Unknown"
+    }
+  ]
+}

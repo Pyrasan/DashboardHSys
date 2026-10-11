@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: #f3f4f6;
+}
+
+.dark body,
+html.dark body {
+  background-color: #0f172a;
+}
+
+html.dark,
+html.dark body {
+  color-scheme: dark;
+}
+
+.dark .card {
+  @apply bg-slate-800 border-slate-700;
+}
+
+.card {
+  @apply bg-white dark:bg-slate-800 rounded-lg shadow-md p-4;
+}
+
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium transition-colors;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+
+.btn-success {
+  @apply bg-green-600 text-white hover:bg-green-700;
+}
